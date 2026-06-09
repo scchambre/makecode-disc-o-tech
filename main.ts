@@ -4,7 +4,7 @@ bluetooth.startUartService()
 
 // ---- tuning ----
 const RING = 250         // samples kept in the rolling buffer (~5 s at ~50 Hz). Raise for a longer run-up.
-const SAMPLE_PAUSE = 15  // ~50 Hz — plenty for run-up / x-step body motion
+const SAMPLE_PAUSE = 5  // Was 15, which was ~50 Hz — plenty for run-up / x-step body motion
 const POST_MS = 1000     // keep recording this long AFTER the throw spike (flight)
 const TRIGGER_MG = 2600  // throw detection (~2.6 g). Lower toward 1800 for gentle tosses.
 const STILL_MG = 1300    // "still" threshold (gravity reference + re-arm)
@@ -39,8 +39,10 @@ bluetooth.onBluetoothDisconnected(function () {
 })
 
 function emit(line: string) {
-    serial.writeLine(line)
+    // Send over Bluetooth if a browser is connected, else USB serial — NEVER both,
+    // so the analyzer can't receive (and double-count) every line twice.
     if (connected) bluetooth.uartWriteLine(line)
+    else serial.writeLine(line)
 }
 
 // record one sample into the rolling buffer; return its acceleration strength
@@ -72,6 +74,7 @@ function dumpRing() {
         basic.pause(OUT_PAUSE)
     }
     emit("# end")
+    widx = 0; filled = 0        // clear the buffer so the next throw can't include stale samples
     basic.showIcon(IconNames.Yes); basic.pause(200); basic.clearScreen()
 }
 
